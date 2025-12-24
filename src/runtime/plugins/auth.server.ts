@@ -33,8 +33,10 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     try {
       const headers = useRequestHeaders(['cookie'])
 
+      // Use internal server function to check local cobras_session cookie
+      // This is set by the exchange endpoint on this domain
       const response = await $fetch<{ valid: boolean; user: CobrasUser }>(
-        `${authConfig.authServiceUrl}/api/auth/verify`,
+        '/api/_cobras/verify',
         {
           headers: {
             cookie: headers.cookie || '',
