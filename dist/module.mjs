@@ -1,4 +1,4 @@
-import { defineNuxtModule, createResolver, addPlugin, addImports, addRouteMiddleware, addServerHandler, addComponent } from '@nuxt/kit';
+import { defineNuxtModule, createResolver, addPlugin, addImports, addRouteMiddleware, addServerHandler, addComponent, extendPages } from '@nuxt/kit';
 import { defu } from 'defu';
 
 const module = defineNuxtModule({
@@ -99,6 +99,13 @@ const module = defineNuxtModule({
         filePath: resolver.resolve("./runtime/components/CobrasDevTools.vue")
       });
     }
+    extendPages((pages) => {
+      pages.push({
+        name: "cobras-auth-error",
+        path: "/_auth/error",
+        file: resolver.resolve("./runtime/pages/auth-error.vue")
+      });
+    });
     if (options.debug) {
       console.log("[@cobras/auth-nuxt] Module configured:", {
         mode: options.mode,

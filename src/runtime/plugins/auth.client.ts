@@ -109,6 +109,17 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       const newQuery = { ...route.query }
       delete newQuery.code
       router.replace({ query: newQuery })
+    } else {
+      // Redirect to error page
+      const currentUrl = window.location.origin + window.location.pathname
+      router.replace({
+        path: '/_auth/error',
+        query: {
+          error: 'Authentication Failed',
+          message: 'Unable to complete login. The authorization code may have expired.',
+          redirect_uri: currentUrl,
+        },
+      })
     }
   }
 

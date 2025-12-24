@@ -7,6 +7,7 @@ import {
   addComponent,
   createResolver,
   addServerPlugin,
+  extendPages,
 } from '@nuxt/kit'
 import { defu } from 'defu'
 import type { ModuleOptions } from './types'
@@ -129,6 +130,15 @@ export default defineNuxtModule<ModuleOptions>({
         filePath: resolver.resolve('./runtime/components/CobrasDevTools.vue'),
       })
     }
+
+    // Add auth error page
+    extendPages((pages) => {
+      pages.push({
+        name: 'cobras-auth-error',
+        path: '/_auth/error',
+        file: resolver.resolve('./runtime/pages/auth-error.vue'),
+      })
+    })
 
     // Log setup info in debug mode
     if (options.debug) {
