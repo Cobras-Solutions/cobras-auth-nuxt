@@ -1,6 +1,6 @@
 {
   "name": "cobras-auth-nuxt",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Nuxt 3/4 module for Cobras Auth service - supports internal (SSO) and public modes",
   "repository": {
     "type": "git",
