@@ -1,0 +1,62 @@
+{
+  "name": "@cobras/auth-nuxt",
+  "version": "1.0.0",
+  "description": "Nuxt 3/4 module for Cobras Auth service - supports internal (SSO) and public modes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cobras-Solutions/cobras-auth-nuxt"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/module.mjs",
+      "require": "./dist/module.cjs"
+    }
+  },
+  "main": "./dist/module.cjs",
+  "module": "./dist/module.mjs",
+  "types": "./dist/types.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prepack": "nuxt-module-build build",
+    "dev": "nuxi dev playground",
+    "dev:build": "nuxi build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxi prepare playground",
+    "release": "npm run prepack && npm publish --access public",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "dependencies": {
+    "@nuxt/kit": "^3.14.0",
+    "defu": "^6.1.4"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^1.6.0",
+    "@nuxt/eslint-config": "^0.6.0",
+    "@nuxt/module-builder": "^0.8.4",
+    "@nuxt/schema": "^3.14.0",
+    "@nuxt/test-utils": "^3.14.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "nuxt": "^3.14.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^3.0.0 || ^4.0.0"
+  },
+  "keywords": [
+    "nuxt",
+    "nuxt-module",
+    "authentication",
+    "sso",
+    "cobras",
+    "auth"
+  ]
+}
