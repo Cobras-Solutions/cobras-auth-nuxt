@@ -3,7 +3,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig();
   const authConfig = config.public.cobrasAuth;
   const state = useState("cobras-auth-state");
-  if (to.query.code) {
+  const hasCode = to.query.code || typeof window === "undefined" && useRequestURL().searchParams.has("code");
+  if (hasCode) {
     return;
   }
   if (!state.value?.initialized) {

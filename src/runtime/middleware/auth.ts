@@ -19,7 +19,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const state = useState<CobrasAuthState>('cobras-auth-state')
 
   // If there's a code in the query, let the page load so plugin can exchange it
-  if (to.query.code) {
+  // Check both to.query and URL params for SSR compatibility
+  const hasCode = to.query.code || (typeof window === 'undefined' && useRequestURL().searchParams.has('code'))
+  if (hasCode) {
     return
   }
 
