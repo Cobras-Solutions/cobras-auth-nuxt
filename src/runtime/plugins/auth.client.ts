@@ -73,9 +73,9 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     // Use current URL as redirect, ensuring it's a full URL
     const currentUrl = redirect || window.location.href
 
-    // Use redirect_uri for OAuth-style flow (cross-domain)
-    const loginUrl = `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(currentUrl)}`
-    window.location.href = loginUrl
+    // Use authorize endpoint for OAuth-style flow (supports IP auto-auth)
+    const authorizeUrl = `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(currentUrl)}`
+    window.location.href = authorizeUrl
   }
 
   async function logout(): Promise<void> {

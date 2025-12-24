@@ -36,9 +36,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
       ? window.location.href
       : to.fullPath
 
-    // Use redirect_uri for OAuth-style flow
+    // Use authorize endpoint for OAuth-style flow (supports IP auto-auth)
     return navigateTo(
-      `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(currentUrl)}`,
+      `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(currentUrl)}`,
       { external: true }
     )
   }

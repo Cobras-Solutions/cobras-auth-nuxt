@@ -57,8 +57,8 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   }
   function login(redirect) {
     const currentUrl = redirect || window.location.href;
-    const loginUrl = `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(currentUrl)}`;
-    window.location.href = loginUrl;
+    const authorizeUrl = `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(currentUrl)}`;
+    window.location.href = authorizeUrl;
   }
   async function logout() {
     try {

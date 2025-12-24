@@ -29,7 +29,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
       redirectUrl = to.fullPath;
     }
     return navigateTo(
-      `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(redirectUrl)}`,
+      `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(redirectUrl)}`,
       { external: true }
     );
   }

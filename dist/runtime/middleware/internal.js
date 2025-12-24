@@ -12,7 +12,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!state.value?.user) {
     const currentUrl = typeof window !== "undefined" ? window.location.href : to.fullPath;
     return navigateTo(
-      `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(currentUrl)}`,
+      `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(currentUrl)}`,
       { external: true }
     );
   }
