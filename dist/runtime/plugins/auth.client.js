@@ -80,19 +80,17 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   if (code) {
     const success = await exchangeCode(code);
     if (success) {
+      state.value.initialized = true;
       const newQuery = { ...route.query };
       delete newQuery.code;
-      router.replace({ query: newQuery });
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("code");
+      window.history.replaceState({}, "", newUrl.toString());
+      return;
     } else {
       const currentUrl = window.location.origin + window.location.pathname;
-      router.replace({
-        path: "/_auth/error",
-        query: {
-          error: "Authentication Failed",
-          message: "Unable to complete login. The authorization code may have expired.",
-          redirect_uri: currentUrl
-        }
-      });
+      window.location.href = `/_auth/error?error=Authentication%20Failed&message=Unable%20to%20complete%20login.&redirect_uri=${encodeURIComponent(currentUrl)}`;
+      return;
     }
   }
   await checkAuth();

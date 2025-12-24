@@ -105,25 +105,29 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     const success = await exchangeCode(code)
 
     if (success) {
+      // Mark as initialized immediately to prevent redirect loops
+      state.value.initialized = true
+
       // Remove code from URL without triggering navigation
       const newQuery = { ...route.query }
       delete newQuery.code
-      router.replace({ query: newQuery })
+
+      // Use window.history to avoid triggering middleware
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('code')
+      window.history.replaceState({}, '', newUrl.toString())
+
+      // Don't call checkAuth - we already have the user from exchange
+      return
     } else {
       // Redirect to error page
       const currentUrl = window.location.origin + window.location.pathname
-      router.replace({
-        path: '/_auth/error',
-        query: {
-          error: 'Authentication Failed',
-          message: 'Unable to complete login. The authorization code may have expired.',
-          redirect_uri: currentUrl,
-        },
-      })
+      window.location.href = `/_auth/error?error=Authentication%20Failed&message=Unable%20to%20complete%20login.&redirect_uri=${encodeURIComponent(currentUrl)}`
+      return
     }
   }
 
-  // Check auth on initial load (will use session from code exchange if it happened)
+  // Check auth on initial load (only if no code was exchanged)
   await checkAuth()
 
   // Set up keyboard shortcut for dev tools
