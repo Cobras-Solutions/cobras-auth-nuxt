@@ -1,4 +1,4 @@
-import { defineNuxtRouteMiddleware, useRuntimeConfig, useState, navigateTo } from "#imports";
+import { defineNuxtRouteMiddleware, useRuntimeConfig, useState, navigateTo, useRequestURL } from "#imports";
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig();
   const authConfig = config.public.cobrasAuth;
@@ -26,7 +26,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     if (typeof window !== "undefined") {
       redirectUrl = window.location.href;
     } else {
-      redirectUrl = to.fullPath;
+      const requestUrl = useRequestURL();
+      redirectUrl = requestUrl.href;
     }
     return navigateTo(
       `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(redirectUrl)}`,

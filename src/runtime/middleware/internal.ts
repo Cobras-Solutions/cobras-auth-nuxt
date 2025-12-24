@@ -1,4 +1,4 @@
-import { defineNuxtRouteMiddleware, useRuntimeConfig, useState, navigateTo } from '#imports'
+import { defineNuxtRouteMiddleware, useRuntimeConfig, useState, navigateTo, useRequestURL } from '#imports'
 import type { CobrasAuthState } from '../../types'
 
 /**
@@ -32,9 +32,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Always require authentication for this middleware
   if (!state.value?.user) {
-    const currentUrl = typeof window !== 'undefined'
-      ? window.location.href
-      : to.fullPath
+    // Build the full redirect URL (works on both server and client)
+    let currentUrl: string
+
+    if (typeof window !== 'undefined') {
+      currentUrl = window.location.href
+    } else {
+      const requestUrl = useRequestURL()
+      currentUrl = requestUrl.href
+    }
 
     // Use authorize endpoint for OAuth-style flow (supports IP auto-auth)
     return navigateTo(
