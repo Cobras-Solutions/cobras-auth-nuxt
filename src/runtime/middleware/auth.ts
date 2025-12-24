@@ -7,6 +7,7 @@ import type { CobrasAuthState } from '../../types'
  * INTERNAL MODE:
  * - Redirects unauthenticated users to auth service
  * - Respects publicRoutes config
+ * - Uses OAuth-style redirect_uri for cross-domain support
  *
  * PUBLIC MODE:
  * - Just checks auth status silently (no redirect)
@@ -17,9 +18,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const authConfig = config.public.cobrasAuth
   const state = useState<CobrasAuthState>('cobras-auth-state')
 
+  // If there's a code in the query, let the page load so plugin can exchange it
+  if (to.query.code) {
+    return
+  }
+
   // Wait for auth to be initialized
   if (!state.value?.initialized) {
-    // Auth not initialized yet - plugin will handle it
     return
   }
 
@@ -42,13 +47,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Check if user is authenticated
   if (!state.value?.user) {
-    // Redirect to auth service
-    const currentUrl = typeof window !== 'undefined'
-      ? window.location.href
-      : to.fullPath
+    // Build the redirect URL
+    // On server, we need to construct from request or use the path
+    // On client, we use the full window.location.href
+    let redirectUrl: string
 
+    if (typeof window !== 'undefined') {
+      redirectUrl = window.location.href
+    } else {
+      // Server-side: construct URL from path (will be relative)
+      // The app should set a base URL in production
+      redirectUrl = to.fullPath
+    }
+
+    // Use redirect_uri for OAuth-style flow
     return navigateTo(
-      `${authConfig.authServiceUrl}/login?redirect=${encodeURIComponent(currentUrl)}`,
+      `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(redirectUrl)}`,
       { external: true }
     )
   }

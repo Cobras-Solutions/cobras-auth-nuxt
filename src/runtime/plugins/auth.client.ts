@@ -1,9 +1,11 @@
-import { defineNuxtPlugin, useRuntimeConfig, useState, computed } from '#imports'
+import { defineNuxtPlugin, useRuntimeConfig, useState, computed, useRoute, useRouter } from '#imports'
 import type { CobrasUser, CobrasAuthState } from '../../types'
 
 export default defineNuxtPlugin(async (nuxtApp) => {
   const config = useRuntimeConfig()
   const authConfig = config.public.cobrasAuth
+  const route = useRoute()
+  const router = useRouter()
 
   const state = useState<CobrasAuthState>('cobras-auth-state', () => ({
     user: null,
@@ -16,6 +18,29 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   const isAuthenticated = computed(() => !!state.value.user)
   const isInternalUser = computed(() => !!state.value.user)
   const isAdmin = computed(() => state.value.user?.role === 'admin')
+
+  /**
+   * Exchange an auth code for a session
+   */
+  async function exchangeCode(code: string): Promise<boolean> {
+    try {
+      const response = await $fetch<{ success: boolean; user: CobrasUser }>('/api/_cobras/exchange', {
+        method: 'POST',
+        body: { code },
+        credentials: 'include',
+      })
+
+      if (response.success && response.user) {
+        state.value.user = response.user
+        return true
+      }
+    } catch (error: any) {
+      if (authConfig.debug) {
+        console.warn('[@cobras/auth-nuxt] Code exchange failed:', error)
+      }
+    }
+    return false
+  }
 
   async function checkAuth(): Promise<void> {
     if (state.value.loading) return
@@ -35,7 +60,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       }
     } catch (error: any) {
       state.value.user = null
-      // Don't log 401s as errors - they're expected for unauthenticated users
       if (error.statusCode !== 401 && authConfig.debug) {
         console.warn('[@cobras/auth-nuxt] Auth check failed:', error)
       }
@@ -46,8 +70,11 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   }
 
   function login(redirect?: string): void {
+    // Use current URL as redirect, ensuring it's a full URL
     const currentUrl = redirect || window.location.href
-    const loginUrl = `${authConfig.authServiceUrl}/login?redirect=${encodeURIComponent(currentUrl)}`
+
+    // Use redirect_uri for OAuth-style flow (cross-domain)
+    const loginUrl = `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(currentUrl)}`
     window.location.href = loginUrl
   }
 
@@ -70,7 +97,22 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     }
   }
 
-  // Check auth on initial load
+  // Check for auth code in URL (from OAuth redirect)
+  const code = route.query.code as string | undefined
+
+  if (code) {
+    // Exchange the code for a session
+    const success = await exchangeCode(code)
+
+    if (success) {
+      // Remove code from URL without triggering navigation
+      const newQuery = { ...route.query }
+      delete newQuery.code
+      router.replace({ query: newQuery })
+    }
+  }
+
+  // Check auth on initial load (will use session from code exchange if it happened)
   await checkAuth()
 
   // Set up keyboard shortcut for dev tools

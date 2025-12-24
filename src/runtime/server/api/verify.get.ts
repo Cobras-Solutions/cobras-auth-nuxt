@@ -2,25 +2,41 @@ import { defineEventHandler, getHeader, getCookie, createError } from 'h3'
 import { useRuntimeConfig } from '#imports'
 
 /**
- * Proxy endpoint for verifying auth tokens
- * Forwards the request to the auth service with cookies
+ * Verify auth - checks local session first, then remote auth service
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const authServiceUrl = config.public.cobrasAuth.authServiceUrl
 
-  // Get token from cookie or Authorization header
-  let token = getCookie(event, 'access_token')
+  // First, check local session cookie (from code exchange)
+  const sessionCookie = getCookie(event, 'cobras_session')
 
-  if (!token) {
-    const authHeader = getHeader(event, 'authorization')
-    if (authHeader?.startsWith('Bearer ')) {
-      token = authHeader.slice(7)
+  if (sessionCookie) {
+    try {
+      const session = JSON.parse(Buffer.from(sessionCookie, 'base64').toString())
+
+      // Check if session is expired
+      if (session.expires_at && new Date(session.expires_at) > new Date()) {
+        return {
+          valid: true,
+          user: session.user,
+        }
+      }
+    } catch {
+      // Invalid session cookie, continue to remote check
     }
   }
 
-  // Forward all cookies from the request
+  // Fallback: try remote auth service (for same-domain cookie scenarios)
+  const token = getCookie(event, 'access_token')
   const cookieHeader = getHeader(event, 'cookie') || ''
+
+  if (!token && !cookieHeader.includes('access_token')) {
+    throw createError({
+      statusCode: 401,
+      message: 'Not authenticated',
+    })
+  }
 
   try {
     const response = await $fetch<{ valid: boolean; user: any }>(
@@ -35,7 +51,6 @@ export default defineEventHandler(async (event) => {
 
     return response
   } catch (error: any) {
-    // Return a clean 401 for unauthenticated
     if (error.statusCode === 401) {
       throw createError({
         statusCode: 401,

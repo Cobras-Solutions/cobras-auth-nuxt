@@ -20,6 +20,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const authConfig = config.public.cobrasAuth
   const state = useState<CobrasAuthState>('cobras-auth-state')
 
+  // If there's a code in the query, let the page load so plugin can exchange it
+  if (to.query.code) {
+    return
+  }
+
   // Wait for auth to be initialized
   if (!state.value?.initialized) {
     return
@@ -31,8 +36,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
       ? window.location.href
       : to.fullPath
 
+    // Use redirect_uri for OAuth-style flow
     return navigateTo(
-      `${authConfig.authServiceUrl}/login?redirect=${encodeURIComponent(currentUrl)}`,
+      `${authConfig.authServiceUrl}/login?redirect_uri=${encodeURIComponent(currentUrl)}`,
       { external: true }
     )
   }
