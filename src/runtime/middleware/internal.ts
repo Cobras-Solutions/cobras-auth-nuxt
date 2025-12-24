@@ -25,8 +25,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  // Wait for auth to be initialized
+  // If not initialized, redirect on server-side (don't let unauthed users through)
   if (!state.value?.initialized) {
+    if (typeof window === 'undefined') {
+      const requestUrl = useRequestURL()
+      return navigateTo(
+        `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(requestUrl.href)}`,
+        { external: true }
+      )
+    }
     return
   }
 

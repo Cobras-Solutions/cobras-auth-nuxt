@@ -23,13 +23,25 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  // Wait for auth to be initialized
-  if (!state.value?.initialized) {
+  // In public mode, we just silently check - no blocking
+  if (authConfig.mode === 'public') {
     return
   }
 
-  // In public mode, we just silently check - no blocking
-  if (authConfig.mode === 'public') {
+  // In internal mode: if not initialized yet, we need to check or redirect
+  // Don't let unauthenticated users through just because state isn't ready
+  if (!state.value?.initialized) {
+    // On server-side, the plugin should have already run and set initialized
+    // If we get here and it's not initialized, something is wrong - redirect to be safe
+    if (typeof window === 'undefined') {
+      // Server-side: redirect to auth if not initialized (plugin should have run)
+      const requestUrl = useRequestURL()
+      return navigateTo(
+        `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(requestUrl.href)}`,
+        { external: true }
+      )
+    }
+    // Client-side: wait for initialization (plugin will handle it)
     return
   }
 

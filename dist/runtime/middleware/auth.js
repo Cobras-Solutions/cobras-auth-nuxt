@@ -6,10 +6,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (to.query.code) {
     return;
   }
-  if (!state.value?.initialized) {
+  if (authConfig.mode === "public") {
     return;
   }
-  if (authConfig.mode === "public") {
+  if (!state.value?.initialized) {
+    if (typeof window === "undefined") {
+      const requestUrl = useRequestURL();
+      return navigateTo(
+        `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(requestUrl.href)}`,
+        { external: true }
+      );
+    }
     return;
   }
   const isPublicRoute = authConfig.publicRoutes.some((route) => {

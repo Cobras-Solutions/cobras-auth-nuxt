@@ -7,6 +7,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return;
   }
   if (!state.value?.initialized) {
+    if (typeof window === "undefined") {
+      const requestUrl = useRequestURL();
+      return navigateTo(
+        `${authConfig.authServiceUrl}/api/auth/authorize?redirect_uri=${encodeURIComponent(requestUrl.href)}`,
+        { external: true }
+      );
+    }
     return;
   }
   if (!state.value?.user) {
