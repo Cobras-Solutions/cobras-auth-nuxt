@@ -8,7 +8,7 @@ import type { CobrasUser, CobrasAuthState } from '../../types'
  * - In PUBLIC mode: Non-blocking, auth check happens client-side
  * - In INTERNAL mode: Blocks SSR only if globalMiddleware is enabled
  */
-export default defineNuxtPlugin((nuxtApp) => {
+export default defineNuxtPlugin(async (nuxtApp) => {
   const config = useRuntimeConfig()
   const authConfig = config.public.cobrasAuth
 
@@ -78,12 +78,10 @@ export default defineNuxtPlugin((nuxtApp) => {
   }
 
   // PUBLIC mode: Never block SSR - users shouldn't wait for auth check
-  // INTERNAL mode: Check auth on server for proper SSO flow
+  // INTERNAL mode: Check auth on server before rendering
   if (authConfig.mode === 'internal') {
-    // Block and check auth for internal apps
-    nuxtApp.hook('app:created', async () => {
-      await checkAuth()
-    })
+    // Block SSR and check auth now
+    await checkAuth()
   } else {
     // Public mode - just mark initialized, client will check
     state.value.initialized = true
