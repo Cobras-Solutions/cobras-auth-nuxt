@@ -19,7 +19,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     try {
       const headers = useRequestHeaders(["cookie"]);
       const response = await $fetch(
-        `${authConfig.authServiceUrl}/api/auth/verify`,
+        "/api/_cobras/verify",
         {
           headers: {
             cookie: headers.cookie || ""

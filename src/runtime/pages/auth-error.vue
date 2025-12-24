@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRoute, useRuntimeConfig } from '#imports'
+import { computed, useRoute, useRuntimeConfig } from '#imports'
 
 const route = useRoute()
 const config = useRuntimeConfig()
