@@ -27,7 +27,7 @@ export default defineNuxtModule<ModuleOptions>({
     siteId: undefined,
     siteDomain: undefined,
     globalMiddleware: false,
-    publicRoutes: ['/'],
+    publicRoutes: [], // Empty by default - user must explicitly set public routes
     loginPath: '/login',
     enableDevTools: true,
     devToolsKey: 'ctrl+shift+d',
