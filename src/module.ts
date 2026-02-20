@@ -123,6 +123,11 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/api/exchange.post'),
     })
 
+    addServerHandler({
+      route: '/api/_cobras/ip-probe',
+      handler: resolver.resolve('./runtime/server/api/ip-probe.get'),
+    })
+
     // Add DevTools panel component
     if (options.enableDevTools) {
       addComponent({

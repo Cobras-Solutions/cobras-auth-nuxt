@@ -42,6 +42,28 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     return false
   }
 
+  /**
+   * Try IP-based auto-auth in the background.
+   * Called when no existing session is found in public mode.
+   * Non-blocking - updates state reactively if IP is whitelisted.
+   */
+  async function tryIpProbe(): Promise<void> {
+    try {
+      const response = await $fetch<{ valid: boolean; user: CobrasUser }>('/api/_cobras/ip-probe', {
+        credentials: 'include',
+      })
+
+      if (response.valid && response.user) {
+        state.value.user = response.user
+        if (authConfig.debug) {
+          console.log('[@cobras/auth-nuxt] IP auto-auth successful:', response.user.email)
+        }
+      }
+    } catch {
+      // IP not whitelisted - this is expected for regular visitors, silently ignore
+    }
+  }
+
   async function checkAuth(): Promise<void> {
     if (state.value.loading) return
 
@@ -60,7 +82,11 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       }
     } catch (error: any) {
       state.value.user = null
-      if (error.statusCode !== 401 && authConfig.debug) {
+
+      // In public mode, if no session exists, try IP-based auto-auth in the background
+      if (authConfig.mode === 'public' && error.statusCode === 401) {
+        tryIpProbe()
+      } else if (error.statusCode !== 401 && authConfig.debug) {
         console.warn('[@cobras/auth-nuxt] Auth check failed:', error)
       }
     } finally {

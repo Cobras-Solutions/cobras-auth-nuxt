@@ -93,6 +93,10 @@ const module = defineNuxtModule({
       route: "/api/_cobras/exchange",
       handler: resolver.resolve("./runtime/server/api/exchange.post")
     });
+    addServerHandler({
+      route: "/api/_cobras/ip-probe",
+      handler: resolver.resolve("./runtime/server/api/ip-probe.get")
+    });
     if (options.enableDevTools) {
       addComponent({
         name: "CobrasDevTools",

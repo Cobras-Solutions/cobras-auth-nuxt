@@ -32,6 +32,20 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     }
     return false;
   }
+  async function tryIpProbe() {
+    try {
+      const response = await $fetch("/api/_cobras/ip-probe", {
+        credentials: "include"
+      });
+      if (response.valid && response.user) {
+        state.value.user = response.user;
+        if (authConfig.debug) {
+          console.log("[@cobras/auth-nuxt] IP auto-auth successful:", response.user.email);
+        }
+      }
+    } catch {
+    }
+  }
   async function checkAuth() {
     if (state.value.loading) return;
     state.value.loading = true;
@@ -47,7 +61,9 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       }
     } catch (error) {
       state.value.user = null;
-      if (error.statusCode !== 401 && authConfig.debug) {
+      if (authConfig.mode === "public" && error.statusCode === 401) {
+        tryIpProbe();
+      } else if (error.statusCode !== 401 && authConfig.debug) {
         console.warn("[@cobras/auth-nuxt] Auth check failed:", error);
       }
     } finally {
