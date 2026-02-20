@@ -93,7 +93,11 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       return;
     }
   }
-  await checkAuth();
+  if (authConfig.mode === "internal") {
+    await checkAuth();
+  } else {
+    checkAuth();
+  }
   if (authConfig.enableDevTools && authConfig.devToolsKey) {
     const keys = authConfig.devToolsKey.toLowerCase().split("+");
     document.addEventListener("keydown", (e) => {

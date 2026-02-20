@@ -128,7 +128,13 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   }
 
   // Check auth on initial load (only if no code was exchanged)
-  await checkAuth()
+  if (authConfig.mode === 'internal') {
+    // Internal mode: must block until auth is verified
+    await checkAuth()
+  } else {
+    // Public mode: fire-and-forget - never block hydration for public visitors
+    checkAuth()
+  }
 
   // Set up keyboard shortcut for dev tools
   if (authConfig.enableDevTools && authConfig.devToolsKey) {
