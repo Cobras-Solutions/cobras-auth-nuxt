@@ -3,10 +3,10 @@ import { useRuntimeConfig } from "#imports";
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   const authServiceUrl = config.public.cobrasAuth.authServiceUrl;
+  const cfIp = getHeader(event, "cf-connecting-ip");
   const forwarded = getHeader(event, "x-forwarded-for");
   const realIp = getHeader(event, "x-real-ip");
-  const cfIp = getHeader(event, "cf-connecting-ip");
-  const clientIp = forwarded?.split(",")[0]?.trim() || realIp || cfIp || "127.0.0.1";
+  const clientIp = cfIp || forwarded?.split(",")[0]?.trim() || realIp || "127.0.0.1";
   try {
     const response = await $fetch(`${authServiceUrl}/api/auth/auto`, {
       method: "POST",

@@ -14,11 +14,14 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const authServiceUrl = config.public.cobrasAuth.authServiceUrl
 
-  // Get the client's real IP from request headers (set by Vercel/proxy)
+  // Get the client's real IP from request headers
+  // Priority: cf-connecting-ip (Cloudflare) > x-forwarded-for (proxy) > x-real-ip > fallback
+  // cf-connecting-ip is always the true client IP when behind Cloudflare,
+  // whereas x-forwarded-for can be overwritten by intermediate proxies (Cloudflare → Vercel)
+  const cfIp = getHeader(event, 'cf-connecting-ip')
   const forwarded = getHeader(event, 'x-forwarded-for')
   const realIp = getHeader(event, 'x-real-ip')
-  const cfIp = getHeader(event, 'cf-connecting-ip')
-  const clientIp = (forwarded?.split(',')[0]?.trim()) || realIp || cfIp || '127.0.0.1'
+  const clientIp = cfIp || (forwarded?.split(',')[0]?.trim()) || realIp || '127.0.0.1'
 
   try {
     // Call cobras-auth-app's auto-auth endpoint, forwarding the client IP
