@@ -1,4 +1,4 @@
-import { defineNuxtModule, createResolver, addPlugin, addImports, addRouteMiddleware, addServerHandler, addComponent, extendPages } from '@nuxt/kit';
+import { defineNuxtModule, createResolver, addPlugin, addImports, addRouteMiddleware, addServerHandler, addServerImports, addServerPlugin, addComponent, extendPages } from '@nuxt/kit';
 import { defu } from 'defu';
 
 const module = defineNuxtModule({
@@ -21,10 +21,14 @@ const module = defineNuxtModule({
     enableDevTools: true,
     devToolsKey: "ctrl+shift+d",
     cookieDomain: void 0,
+    sessionSecret: void 0,
+    guardApiRoutes: true,
+    publicApiRoutes: [],
     debug: false
   },
   setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);
+    nuxt.options.build.transpile.push(resolver.resolve("./runtime"));
     nuxt.options.runtimeConfig.public.cobrasAuth = defu(
       nuxt.options.runtimeConfig.public.cobrasAuth || {},
       {
@@ -42,7 +46,10 @@ const module = defineNuxtModule({
     nuxt.options.runtimeConfig.cobrasAuth = defu(
       nuxt.options.runtimeConfig.cobrasAuth || {},
       {
-        cookieDomain: options.cookieDomain
+        cookieDomain: options.cookieDomain,
+        sessionSecret: options.sessionSecret ?? "",
+        guardApiRoutes: options.guardApiRoutes,
+        publicApiRoutes: options.publicApiRoutes
       }
     );
     addPlugin({
@@ -97,6 +104,21 @@ const module = defineNuxtModule({
       route: "/api/_cobras/ip-probe",
       handler: resolver.resolve("./runtime/server/api/ip-probe.get")
     });
+    addServerImports([
+      {
+        name: "requireCobrasSession",
+        from: resolver.resolve("./runtime/server/utils/session")
+      },
+      {
+        name: "getCobrasSession",
+        from: resolver.resolve("./runtime/server/utils/session")
+      }
+    ]);
+    addServerHandler({
+      middleware: true,
+      handler: resolver.resolve("./runtime/server/middleware/api-guard")
+    });
+    addServerPlugin(resolver.resolve("./runtime/server/plugins/session-secret"));
     if (options.enableDevTools) {
       addComponent({
         name: "CobrasDevTools",
@@ -114,7 +136,9 @@ const module = defineNuxtModule({
       console.log("[@cobras/auth-nuxt] Module configured:", {
         mode: options.mode,
         authServiceUrl: options.authServiceUrl,
-        globalMiddleware: options.globalMiddleware
+        globalMiddleware: options.globalMiddleware,
+        guardApiRoutes: options.guardApiRoutes,
+        publicApiRoutes: options.publicApiRoutes
       });
     }
   }

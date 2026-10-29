@@ -7,11 +7,21 @@ Nuxt 3/4 module for integrating with the Cobras Auth service. Supports two modes
 
 ## Installation
 
+The module is installed straight from GitHub, pinned to a tag (`dist/` is committed):
+
 ```bash
-npm install @cobras/auth-nuxt
-# or
-pnpm add @cobras/auth-nuxt
+pnpm add github:Cobras-Solutions/cobras-auth-nuxt#v1.0.12
 ```
+
+Then set the session secret in the app's environment (Vercel / Railway / `.env`):
+
+```bash
+# any long random string, e.g. `openssl rand -base64 48`
+COBRAS_AUTH_SESSION_SECRET=...
+```
+
+Without it the site still works, but **nobody can sign in**: no session cookie is
+ever issued or accepted, and the server logs one warning at startup.
 
 ## Setup
 
@@ -39,6 +49,11 @@ export default defineNuxtConfig({
 
     // Routes that don't require auth (internal mode)
     publicRoutes: ['/', '/about', '/public/*'],
+
+    // Internal mode: require a session on every /api/** request (default true)
+    guardApiRoutes: true,
+    // ...except these (same syntax as publicRoutes)
+    publicApiRoutes: ['/api/health', '/api/webhooks/*'],
 
     // Enable dev tools for authenticated users
     enableDevTools: true,
@@ -86,6 +101,12 @@ Use cases:
 - Admin dashboards
 - Internal tools
 - Apps that require authentication for all routes
+
+In internal mode the module also installs a **server-side API guard**: every request
+under `/api/**` must carry a valid signed `cobras_session` cookie or it gets a `401`.
+The module's own `/api/_cobras/*` endpoints and anything listed in `publicApiRoutes`
+stay reachable. Set `guardApiRoutes: false` to opt out. Public mode never guards
+API routes; use `requireCobrasSession()` in the handlers that need it.
 
 ## Usage
 
@@ -234,7 +255,34 @@ Toggle with keyboard shortcut (default: `Ctrl+Shift+D`).
 | `enableDevTools` | `boolean` | `true` | Enable dev tools panel |
 | `devToolsKey` | `string` | `'ctrl+shift+d'` | Keyboard shortcut |
 | `cookieDomain` | `string` | - | Cookie domain override |
+| `sessionSecret` | `string` | - | HMAC secret for `cobras_session`; prefer the `COBRAS_AUTH_SESSION_SECRET` env var |
+| `guardApiRoutes` | `boolean` | `true` | Internal mode: require a session on `/api/**` |
+| `publicApiRoutes` | `string[]` | `[]` | Internal mode: API paths exempt from the guard |
 | `debug` | `boolean` | `false` | Enable debug logging |
+
+### Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `COBRAS_AUTH_SESSION_SECRET` | Server-only secret used to HMAC-SHA256 sign the `cobras_session` cookie. Required for sign-in to work. `NUXT_COBRAS_AUTH_SESSION_SECRET` (Nuxt runtime-config form) is honoured too. |
+
+### Session cookie
+
+`cobras_session` is host-only, `httpOnly`, `SameSite=Lax`, 24 h, `Secure` in production.
+Its value is `v1.<base64url payload>.<base64url HMAC-SHA256>`; the payload is
+`{ user, expires_at }`. The server accepts it only when the signature verifies against
+`COBRAS_AUTH_SESSION_SECRET` (constant-time compare) and `expires_at` is in the future.
+Anything else, including the unsigned base64 cookies written by versions before 1.0.12,
+is treated as "no session". Logout clears it.
+
+### Server helpers
+
+| Export | Description |
+|--------|-------------|
+| `requireCobrasSession(event)` | Returns `{ user, expires_at }` or throws a `401` |
+| `getCobrasSession(event)` | Returns the session or `null`, never throws |
+
+Both are auto-imported in Nitro; explicit import: `import { requireCobrasSession } from 'cobras-auth-nuxt/server'`.
 
 ### CobrasUser Type
 
@@ -267,15 +315,17 @@ const showBetaFeature = computed(() => {
 
 ### Protected API Route
 
+`requireCobrasSession(event)` and `getCobrasSession(event)` are auto-imported in
+Nitro (and exported from `cobras-auth-nuxt/server`). They verify the signed
+`cobras_session` cookie locally, with no network call.
+
 ```typescript
 // server/api/admin/stats.get.ts
 export default defineEventHandler(async (event) => {
-  // Verify auth via the proxy endpoint
-  const auth = await $fetch('/api/_cobras/verify', {
-    headers: { cookie: getHeader(event, 'cookie') || '' }
-  }).catch(() => null)
+  // Throws 401 when there is no valid signed session
+  const session = requireCobrasSession(event)
 
-  if (!auth?.valid || auth.user?.role !== 'admin') {
+  if (session.user.role !== 'admin') {
     throw createError({ statusCode: 403, message: 'Admin access required' })
   }
 
@@ -283,18 +333,56 @@ export default defineEventHandler(async (event) => {
 })
 ```
 
+```typescript
+// Non-throwing variant: null when there is no session
+const session = getCobrasSession(event)
+```
+
+In internal mode you usually do not need to call these for plain "must be logged
+in" checks, because the API guard already rejects anonymous requests; call them
+when you need the user (role checks, audit logs).
+
+## Upgrading
+
+### 1.0.11 → 1.0.12 (signed session cookie, API guard)
+
+1. Add `COBRAS_AUTH_SESSION_SECRET` to the app's environment **before** deploying the
+   bump. Without it nobody can sign in (the site itself keeps working).
+2. Bump the dependency to `github:Cobras-Solutions/cobras-auth-nuxt#v1.0.12`.
+3. **Existing sessions end**: old unsigned cookies are rejected, so every internal user
+   signs in once more (or is re-authenticated by the IP probe). Visitors on public-mode
+   sites are not affected.
+4. Internal-mode apps: `/api/**` now returns `401` without a session. List any route that
+   must stay anonymous (health checks, webhooks) in `publicApiRoutes`.
+5. Replace hand-rolled session checks in `server/` with `requireCobrasSession(event)`.
+
 ## Development
 
 ```bash
-# Install dependencies
+# Install dependencies (lockfile is pnpm v6 format: use pnpm 8, e.g. `npx pnpm@8 install`)
 pnpm install
 
-# Build the module
-pnpm prepack
+# Typecheck-ish + tests
+pnpm test
+
+# Build the module (dist/ is committed)
+pnpm build
 
 # Dev with playground
 pnpm dev:prepare
 pnpm dev
+```
+
+### Releasing
+
+Consumers install from a git tag, so a release is a commit that includes `dist/`:
+
+```bash
+# bump "version" in package.json (dist/module.json follows on build)
+pnpm test && pnpm build
+git add -A && git commit -m "1.0.x - what changed"
+git tag v1.0.x
+git push origin main --tags
 ```
 
 ## License

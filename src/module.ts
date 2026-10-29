@@ -7,12 +7,13 @@ import {
   addComponent,
   createResolver,
   addServerPlugin,
+  addServerImports,
   extendPages,
 } from '@nuxt/kit'
 import { defu } from 'defu'
 import type { ModuleOptions } from './types'
 
-export type { ModuleOptions, CobrasUser, CobrasAuthState } from './types'
+export type { ModuleOptions, CobrasUser, CobrasAuthState, CobrasSession } from './types'
 
 export default defineNuxtModule<ModuleOptions>({
   meta: {
@@ -33,10 +34,16 @@ export default defineNuxtModule<ModuleOptions>({
     enableDevTools: true,
     devToolsKey: 'ctrl+shift+d',
     cookieDomain: undefined,
+    sessionSecret: undefined,
+    guardApiRoutes: true,
+    publicApiRoutes: [],
     debug: false,
   },
   setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
+
+    // Make sure Nitro bundles our runtime (it imports from '#imports')
+    nuxt.options.build.transpile.push(resolver.resolve('./runtime'))
 
     // Merge options with runtime config
     nuxt.options.runtimeConfig.public.cobrasAuth = defu(
@@ -54,11 +61,16 @@ export default defineNuxtModule<ModuleOptions>({
       }
     )
 
-    // Private runtime config (server-side only)
+    // Private runtime config (server-side only).
+    // sessionSecret is overridable at runtime via NUXT_COBRAS_AUTH_SESSION_SECRET;
+    // the plain COBRAS_AUTH_SESSION_SECRET env var is also honoured at runtime.
     nuxt.options.runtimeConfig.cobrasAuth = defu(
       nuxt.options.runtimeConfig.cobrasAuth || {},
       {
         cookieDomain: options.cookieDomain,
+        sessionSecret: options.sessionSecret ?? '',
+        guardApiRoutes: options.guardApiRoutes,
+        publicApiRoutes: options.publicApiRoutes,
       }
     )
 
@@ -128,6 +140,29 @@ export default defineNuxtModule<ModuleOptions>({
       handler: resolver.resolve('./runtime/server/api/ip-probe.get'),
     })
 
+    // Server helpers for app API routes (auto-imported in Nitro:
+    // requireCobrasSession(event) / getCobrasSession(event))
+    addServerImports([
+      {
+        name: 'requireCobrasSession',
+        from: resolver.resolve('./runtime/server/utils/session'),
+      },
+      {
+        name: 'getCobrasSession',
+        from: resolver.resolve('./runtime/server/utils/session'),
+      },
+    ])
+
+    // Internal-mode API guard: requires a valid signed session on /api/**
+    // (except /api/_cobras/* and publicApiRoutes). No-op in public mode.
+    addServerHandler({
+      middleware: true,
+      handler: resolver.resolve('./runtime/server/middleware/api-guard'),
+    })
+
+    // Warn once at startup when COBRAS_AUTH_SESSION_SECRET is missing/weak
+    addServerPlugin(resolver.resolve('./runtime/server/plugins/session-secret'))
+
     // Add DevTools panel component
     if (options.enableDevTools) {
       addComponent({
@@ -151,6 +186,8 @@ export default defineNuxtModule<ModuleOptions>({
         mode: options.mode,
         authServiceUrl: options.authServiceUrl,
         globalMiddleware: options.globalMiddleware,
+        guardApiRoutes: options.guardApiRoutes,
+        publicApiRoutes: options.publicApiRoutes,
       })
     }
   },

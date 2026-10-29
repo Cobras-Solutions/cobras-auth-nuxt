@@ -1,29 +1,25 @@
 import { defineEventHandler, getHeader, getCookie, createError } from 'h3'
 import { useRuntimeConfig } from '#imports'
+import { getCobrasSession } from '../utils/session'
 
 /**
- * Verify auth - checks local session first, then remote auth service
+ * Verify auth - checks the signed local session cookie first, then the
+ * remote auth service (same-domain `access_token` scenarios).
+ *
+ * The local cookie is only trusted when its HMAC signature verifies against
+ * COBRAS_AUTH_SESSION_SECRET and it has not expired. A missing secret, an
+ * unsigned (pre-1.0.12) cookie or a tampered cookie all count as no session.
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const authServiceUrl = config.public.cobrasAuth.authServiceUrl
 
-  // First, check local session cookie (from code exchange)
-  const sessionCookie = getCookie(event, 'cobras_session')
-
-  if (sessionCookie) {
-    try {
-      const session = JSON.parse(Buffer.from(sessionCookie, 'base64').toString())
-
-      // Check if session is expired
-      if (session.expires_at && new Date(session.expires_at) > new Date()) {
-        return {
-          valid: true,
-          user: session.user,
-        }
-      }
-    } catch {
-      // Invalid session cookie, continue to remote check
+  // First, check the signed local session cookie (from code exchange / IP probe)
+  const session = getCobrasSession(event)
+  if (session) {
+    return {
+      valid: true,
+      user: session.user,
     }
   }
 

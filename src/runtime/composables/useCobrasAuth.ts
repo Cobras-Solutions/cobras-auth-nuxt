@@ -1,5 +1,5 @@
 import { useState, useRuntimeConfig, useNuxtApp, computed, type Ref, type ComputedRef } from '#imports'
-import type { CobrasUser, CobrasAuthState } from '../../types'
+import type { CobrasUser, CobrasAuthState } from '../types'
 
 export interface UseCobrasAuthReturn {
   /** Current authenticated user */

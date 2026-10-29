@@ -1,20 +1,15 @@
 import { defineEventHandler, getHeader, getCookie, createError } from "h3";
 import { useRuntimeConfig } from "#imports";
+import { getCobrasSession } from "../utils/session.js";
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   const authServiceUrl = config.public.cobrasAuth.authServiceUrl;
-  const sessionCookie = getCookie(event, "cobras_session");
-  if (sessionCookie) {
-    try {
-      const session = JSON.parse(Buffer.from(sessionCookie, "base64").toString());
-      if (session.expires_at && new Date(session.expires_at) > /* @__PURE__ */ new Date()) {
-        return {
-          valid: true,
-          user: session.user
-        };
-      }
-    } catch {
-    }
+  const session = getCobrasSession(event);
+  if (session) {
+    return {
+      valid: true,
+      user: session.user
+    };
   }
   const token = getCookie(event, "access_token");
   const cookieHeader = getHeader(event, "cookie") || "";

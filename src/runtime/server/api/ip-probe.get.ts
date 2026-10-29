@@ -1,11 +1,14 @@
-import { defineEventHandler, getHeader, setCookie, createError } from 'h3'
+import { defineEventHandler, getHeader, createError } from 'h3'
 import { useRuntimeConfig } from '#imports'
+import { setCobrasSessionCookie } from '../utils/session'
+import { SESSION_MAX_AGE_SECONDS } from '../utils/session-core'
 
 /**
  * IP-based auto-auth probe
  *
  * Forwards the client's real IP to cobras-auth-app's /api/auth/auto endpoint.
- * If the IP is whitelisted (user-specific or global), creates a local session cookie.
+ * If the IP is whitelisted (user-specific or global), creates the signed local
+ * session cookie.
  *
  * This runs client-side in the background (fire-and-forget) in public mode,
  * so it never blocks page load for regular visitors.
@@ -44,20 +47,10 @@ export default defineEventHandler(async (event) => {
     })
 
     if (response.success && response.user) {
-      // Create local session cookie (same as exchange endpoint)
-      const session = {
+      // Signed local session cookie (same helper as the exchange endpoint)
+      setCobrasSessionCookie(event, {
         user: response.user,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      }
-
-      const sessionData = Buffer.from(JSON.stringify(session)).toString('base64')
-
-      setCookie(event, 'cobras_session', sessionData, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 24 * 60 * 60, // 24 hours
+        expires_at: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
       })
 
       return {

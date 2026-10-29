@@ -1,11 +1,13 @@
-import { defineEventHandler, readBody, createError, setCookie } from 'h3'
+import { defineEventHandler, readBody, createError } from 'h3'
 import { useRuntimeConfig } from '#imports'
+import { setCobrasSessionCookie } from '../utils/session'
+import { SESSION_MAX_AGE_SECONDS } from '../utils/session-core'
 
 /**
  * Exchange auth code for user session
  *
  * Called after redirect from cobras-auth with a one-time code.
- * Exchanges the code for user info and sets a local session cookie.
+ * Exchanges the code for user info and sets the signed local session cookie.
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -45,21 +47,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Create a session token (simple JSON with user + expiry)
-    const session = {
+    // Signed session cookie (HMAC-SHA256 with COBRAS_AUTH_SESSION_SECRET).
+    // Throws 500 when the secret is not configured, so login fails visibly.
+    setCobrasSessionCookie(event, {
       user: response.user,
-      expires_at: response.expires_at,
-    }
-
-    // Set session cookie (encrypted in production, consider using h3 session)
-    const sessionData = Buffer.from(JSON.stringify(session)).toString('base64')
-
-    setCookie(event, 'cobras_session', sessionData, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60, // 24 hours
+      expires_at: response.expires_at
+        || new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
     })
 
     return {

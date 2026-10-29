@@ -25,14 +25,19 @@ The Cobras Auth system provides SSO (Single Sign-On) authentication across multi
 │  │  └──────────────┘  └──────────────┘  └──────────────────────────┘   │    │
 │  │                                                                      │    │
 │  │  ┌─────────────────────────── Server API ──────────────────────────┐│    │
-│  │  │ /api/_cobras/verify   - Check local session cookie              ││    │
-│  │  │ /api/_cobras/exchange - Exchange auth code for session          ││    │
+│  │  │ /api/_cobras/verify   - Verify signed local session cookie      ││    │
+│  │  │ /api/_cobras/exchange - Exchange auth code for signed session   ││    │
 │  │  │ /api/_cobras/logout   - Clear session cookie                    ││    │
 │  │  │ /api/_cobras/refresh  - Refresh session (future)                ││    │
+│  │  │ /api/_cobras/ip-probe - IP auto-auth → signed session           ││    │
+│  │  └─────────────────────────────────────────────────────────────────┘│    │
+│  │  ┌──────────────────── Server middleware / utils ──────────────────┐│    │
+│  │  │ api-guard (internal mode) - 401 on /api/** without a session    ││    │
+│  │  │ requireCobrasSession(event) / getCobrasSession(event)           ││    │
 │  │  └─────────────────────────────────────────────────────────────────┘│    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 │                                                                              │
-│  Cookie: cobras_session (httpOnly, local domain)                            │
+│  Cookie: cobras_session (httpOnly, host-only, HMAC-SHA256 signed)           │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       │ OAuth-style redirect
@@ -205,18 +210,34 @@ if (hasCode) return // Let page load to handle code exchange
 
 **`/api/_cobras/verify`**
 - Reads `cobras_session` cookie
-- Decodes base64 JSON session data
-- Returns `{ valid: true, user: {...} }` or throws 401
+- Verifies the HMAC-SHA256 signature against `COBRAS_AUTH_SESSION_SECRET`
+  (constant time), parses the payload, checks `expires_at`
+- Returns `{ valid: true, user: {...} }`, otherwise falls back to the auth
+  service's `/api/auth/verify` (same-domain `access_token` only) or throws 401
 
 **`/api/_cobras/exchange`**
 - Accepts `{ code: string }`
 - Calls cobras-auth `/api/auth/token` to validate code
-- Sets `cobras_session` cookie with user data
+- Sets the signed `cobras_session` cookie with user data (500 if no secret is configured)
 - Returns `{ success: true, user: {...} }`
 
 **`/api/_cobras/logout`**
-- Clears `cobras_session` cookie
+- Clears `cobras_session` (and same-domain `access_token` / `refresh_token`)
 - Returns `{ success: true }`
+
+### 5. API Guard (`server/middleware/api-guard.ts`)
+
+Registered as Nitro middleware. In `internal` mode it rejects any request under
+`/api/**` that has no valid signed session with `401`, before the app's handler
+runs. Exempt: `/api/_cobras/*` (needed to log in) and `publicApiRoutes`. A path is
+exempt only if both its raw and percent-decoded forms are exempt (fail closed).
+In `public` mode the middleware returns immediately.
+
+### 6. Server helpers (`server/utils/session.ts`)
+
+`requireCobrasSession(event)` (throws 401) and `getCobrasSession(event)` (returns
+`null`) verify the cookie locally and cache the result on `event.context.cobrasSession`.
+Auto-imported in Nitro via `addServerImports`; also exported as `cobras-auth-nuxt/server`.
 
 ## Cookie Strategy
 
@@ -231,8 +252,12 @@ Cross-domain cookies are blocked by browsers for security. The `cobras_session` 
 
 ### Session Cookie Structure
 
+```
+cobras_session = v1.<base64url(payload)>.<base64url(HMAC-SHA256(secret, "v1.<payload>"))>
+```
+
 ```typescript
-// Stored as base64-encoded JSON
+// payload
 {
   user: {
     id: "...",
@@ -243,6 +268,12 @@ Cross-domain cookies are blocked by browsers for security. The `cobras_session` 
   expires_at: "2024-12-25T00:00:00.000Z"
 }
 ```
+
+The secret is `COBRAS_AUTH_SESSION_SECRET` (server-only, read at runtime; also
+accepted as `NUXT_COBRAS_AUTH_SESSION_SECRET` or the `sessionSecret` module
+option). With no secret the module never issues or accepts a session and logs one
+warning at startup. Before 1.0.12 the cookie was unsigned base64 JSON, which any
+client could forge; those cookies are now rejected.
 
 ## IP Auto-Auth
 
@@ -338,11 +369,15 @@ All authentication events are logged to MongoDB:
 
 ## Security Considerations
 
-1. **httpOnly cookies**: `cobras_session` is httpOnly to prevent XSS
-2. **Secure cookies**: Set to secure in production
-3. **SameSite=Lax**: Prevents CSRF while allowing OAuth redirects
-4. **One-time codes**: Auth codes expire after single use (5 min TTL)
-5. **Session expiry**: Sessions expire after 24 hours
+1. **Signed session**: `cobras_session` is HMAC-SHA256 signed with a server-only
+   secret and verified in constant time; a forged or tampered cookie is "no session"
+2. **Fail closed**: missing secret → no valid sessions, never a crash
+3. **httpOnly cookies**: `cobras_session` is httpOnly to prevent XSS
+4. **Secure cookies**: Set to secure in production
+5. **SameSite=Lax**: Prevents CSRF while allowing OAuth redirects
+6. **One-time codes**: Auth codes expire after single use (5 min TTL)
+7. **Session expiry**: Sessions expire after 24 hours
+8. **API guard**: in internal mode `/api/**` requires a session server-side
 
 ## Deployment
 

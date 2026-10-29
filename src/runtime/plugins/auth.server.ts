@@ -1,5 +1,5 @@
 import { defineNuxtPlugin, useRuntimeConfig, useState, computed, useRequestHeaders } from '#imports'
-import type { CobrasUser, CobrasAuthState } from '../../types'
+import type { CobrasUser, CobrasAuthState } from '../types'
 
 /**
  * Server-side auth plugin
