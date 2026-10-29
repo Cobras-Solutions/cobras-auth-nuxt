@@ -1,5 +1,7 @@
-import { defineEventHandler, readBody, createError, setCookie } from "h3";
+import { defineEventHandler, readBody, createError } from "h3";
 import { useRuntimeConfig } from "#imports";
+import { setCobrasSessionCookie } from "../utils/session.js";
+import { SESSION_MAX_AGE_SECONDS } from "../utils/session-core.js";
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   const authServiceUrl = config.public.cobrasAuth.authServiceUrl;
@@ -22,18 +24,9 @@ export default defineEventHandler(async (event) => {
         message: "Invalid code"
       });
     }
-    const session = {
+    setCobrasSessionCookie(event, {
       user: response.user,
-      expires_at: response.expires_at
-    };
-    const sessionData = Buffer.from(JSON.stringify(session)).toString("base64");
-    setCookie(event, "cobras_session", sessionData, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 24 * 60 * 60
-      // 24 hours
+      expires_at: response.expires_at || new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1e3).toISOString()
     });
     return {
       success: true,

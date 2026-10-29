@@ -1,6 +1,6 @@
 import { useRuntimeConfig, computed } from '#imports'
 import { useCobrasAuth } from './useCobrasAuth'
-import type { AuthMode } from '../../types'
+import type { AuthMode } from '../types'
 
 export interface UseCobrasModeReturn {
   /** Current authentication mode */

@@ -1,5 +1,5 @@
 import { defineNuxtPlugin, useRuntimeConfig, useState, computed, useRoute, useRouter } from '#imports'
-import type { CobrasUser, CobrasAuthState } from '../../types'
+import type { CobrasUser, CobrasAuthState } from '../types'
 
 export default defineNuxtPlugin(async (nuxtApp) => {
   const config = useRuntimeConfig()

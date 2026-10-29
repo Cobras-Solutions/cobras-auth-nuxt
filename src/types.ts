@@ -1,24 +1,6 @@
-export interface CobrasUser {
-  id: string
-  email: string
-  name: string
-  role: 'admin' | 'user'
-  canAccessAdmin?: boolean
-  isAutoAuth?: boolean
-}
+import type { AuthMode, CobrasAuthState, CobrasSession, CobrasUser } from './runtime/types'
 
-export interface CobrasAuthState {
-  /** Current authenticated user, null if not logged in */
-  user: CobrasUser | null
-  /** Whether auth state has been checked */
-  initialized: boolean
-  /** Whether a check is in progress */
-  loading: boolean
-  /** Last error if any */
-  error: string | null
-}
-
-export type AuthMode = 'internal' | 'public'
+export type { AuthMode, CobrasAuthState, CobrasSession, CobrasUser } from './runtime/types'
 
 export interface ModuleOptions {
   /**
@@ -84,6 +66,31 @@ export interface ModuleOptions {
   cookieDomain?: string
 
   /**
+   * Server-only secret used to HMAC-sign the `cobras_session` cookie.
+   * Prefer the env var `COBRAS_AUTH_SESSION_SECRET` (or
+   * `NUXT_COBRAS_AUTH_SESSION_SECRET`) over setting it here, so the value
+   * never lands in a config file. With no secret, no session is ever valid
+   * (login is disabled, the site still works).
+   */
+  sessionSecret?: string
+
+  /**
+   * In 'internal' mode, require a valid session on every `/api/**` request
+   * (server-side), except the module's own `/api/_cobras/*` endpoints and
+   * `publicApiRoutes`. Ignored in 'public' mode.
+   * @default true
+   */
+  guardApiRoutes: boolean
+
+  /**
+   * API paths that stay reachable without a session in 'internal' mode.
+   * Same syntax as `publicRoutes`: exact path, or a trailing `*` for a prefix
+   * (e.g. `['/api/health', '/api/webhooks/*']`).
+   * @default []
+   */
+  publicApiRoutes: string[]
+
+  /**
    * Enable debug logging
    * @default false
    */
@@ -95,6 +102,9 @@ declare module '@nuxt/schema' {
   interface RuntimeConfig {
     cobrasAuth: {
       cookieDomain?: string
+      sessionSecret: string
+      guardApiRoutes: boolean
+      publicApiRoutes: string[]
     }
   }
   interface PublicRuntimeConfig {

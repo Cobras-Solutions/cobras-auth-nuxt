@@ -1,8 +1,12 @@
-import { defineEventHandler, getHeader, setCookie, createError } from 'h3'
+import { defineEventHandler, getHeader, setCookie } from 'h3'
 import { useRuntimeConfig } from '#imports'
+import { clearCobrasSessionCookie } from '../utils/session'
 
 /**
  * Proxy endpoint for logging out
+ *
+ * Tells the auth service to end its session, then clears the local signed
+ * `cobras_session` cookie plus any same-domain auth-service cookies.
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -22,7 +26,10 @@ export default defineEventHandler(async (event) => {
     // Ignore errors - we'll clear cookies anyway
   }
 
-  // Clear auth cookies locally
+  // Clear the local session cookie
+  clearCobrasSessionCookie(event)
+
+  // Clear auth-service cookies locally (same-domain deployments)
   const cookieOptions = {
     httpOnly: true,
     secure: true,

@@ -1,5 +1,6 @@
 import { defineEventHandler, getHeader, setCookie } from "h3";
 import { useRuntimeConfig } from "#imports";
+import { clearCobrasSessionCookie } from "../utils/session.js";
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   const authServiceUrl = config.public.cobrasAuth.authServiceUrl;
@@ -14,6 +15,7 @@ export default defineEventHandler(async (event) => {
     });
   } catch {
   }
+  clearCobrasSessionCookie(event);
   const cookieOptions = {
     httpOnly: true,
     secure: true,

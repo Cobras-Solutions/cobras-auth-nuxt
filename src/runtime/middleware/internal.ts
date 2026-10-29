@@ -1,5 +1,5 @@
 import { defineNuxtRouteMiddleware, useRuntimeConfig, useState, navigateTo, useRequestURL } from '#imports'
-import type { CobrasAuthState } from '../../types'
+import type { CobrasAuthState } from '../types'
 
 /**
  * Internal-only middleware
